@@ -69,11 +69,21 @@ dimensions and are therefore closely related. `EQvas` and `srh` are independent 
 Confirmed predictor set (PI):
 
 `Sex`, `age7cat`, `emp_cat`, `eth4cat`, `PA_vig`, `PA_mod`, `smoke_ever`, `smoke_ecig`,
-`alcohol_yr`, `diabetes`, `obese`, `resp`, `skin`
+`diabetes`, `edu_cat_2`, `eth2cat`, `meds_num`, `ill_dis`
+
+Variables dropped from current pipeline: `alcohol_yr` (skip-logic artefact), `obese`
+(question-type measurement shift), `resp` and `skin` (missing in HSE 2019 — reserved for a
+separate pipeline restricting the pre-2020 target to HSE 2017–2018 only).
 
 Note: `PA_vig` and `PA_mod` are the physical activity variables in the Apr 2026 data (days
 per week; replacing old `paVig`/`paMod` categorical columns). They have 95.8% missing and
 are present only in DAPHNIE 2023 — same issue as before, cannot enter the density ratio model.
+
+`edu_cat_2` replaces the original `edu_cat`: binary coding (Degree or equivalent vs below
+degree, absorbing the old No qualification category). Confirmed by PI. `eth4cat` categories
+are also being collapsed — new coding pending. `meds_num` (number of medications) and
+`ill_dis` (illness/disability indicator) added to predictor set by PI; both already present
+and audited in the dataset.
 
 ---
 
@@ -145,44 +155,41 @@ derivation**. HSE 2022 may still be used for sensitivity checks on variables it 
 contain (e.g. employment, BMI, SRH).
 
 ### Within-HSE drift is small and largely explainable (Apr 2026 re-run)
-Only 4 of 27 variables exceed |SMD| > 0.1 (pre-2020 vs HSE 2022):
+`edu_cat` (original ordinal) dropped from the analytic set as redundant with `edu_cat_2` (binary recoding, strictly preferred). 3 of 35 variables exceed |SMD| > 0.1 (pre-2020 vs HSE 2022):
 
 | Variable | SMD (post − pre) | Explanation |
 |---|---|---|
-| `obese` | −0.244 | Measurement shift (nurse-measured pre-2020 vs self-reported 2022) |
-| `smoke_ever` | −0.176 | Plausible secular decline in smoking prevalence (54.8% → 54.5% → 52.6% → 50.8% across waves) |
-| `edu_cat` | +0.166 | Plausible secular trend |
+| `alcohol_yr` | −0.418 | Skip-logic artefact also affects within-HSE comparison — further confirms exclusion from density ratio model |
+| `edu_cat_2` | +0.162 | Plausible secular trend (degree holders: ~28–29% pre-2020 → 34% HSE 2022) |
 | `sat` | −0.156 | Possible COVID effect on life satisfaction |
 
-Notably, **employment is now stable within HSE** — the large SMDs seen previously
-(emp_cat SMD up to 0.41) were entirely the all-zero coding artefact. EQ-5D dimensions
-and health outcomes are stable across the split. Pre-2020 HSE is a valid, stable
-reference pool for norm derivation.
+Notable changes from previous documentation: `obese` is now stable within HSE (SMD = +0.016); the measurement shift concern is specific to the DAPHNIE comparison (addressed in notebook 02). `smoke_ever` improved to SMD = −0.089 (below threshold); the secular decline is plausible and confirmed. Notably, **employment is now stable within HSE** — the large SMDs seen previously (emp_cat SMD up to 0.41) were entirely the all-zero coding artefact. EQ-5D dimensions and health outcomes are stable across the split. Pre-2020 HSE is a valid, stable reference pool for norm derivation.
+
+**Pooling conclusion:** HSE 2017, 2018, and 2019 can be pooled as the pre-2020 reference for the predictor variables. Strictly, the notebook tests the *pooled* pre-2020 against HSE 2022 — it does not formally test wave-by-wave consistency within the pre-2020 period. However, pooling is well-supported: the three waves share the same survey design and sampling frame, and the `smoke_ever` secular trend (54.8% → 54.5% → 52.6%) confirms any within-pre-2020 drift is smooth and small. A rigorous pairwise check (2017 vs 2018 vs 2019) on the confirmed predictor set is reserved for a later stage.
 
 ### DAPHNIE vs HSE: main imbalanced covariates (Apr 2026 re-run)
 
 SMDs below are DAPHNIE 2024 vs pre-2020 HSE (primary density ratio comparison) unless noted.
 23 variables show |SMD| > 0.1 in at least one of the four comparisons.
 
-**Variables with large imbalance — currently outside the density ratio feature set:**
-- **`alcohol_yr`** (SMD = −0.87): largest imbalance; skip-logic artefact, not includable as-is
-- **`srh`** (SMD = −0.82): DAPHNIE reports consistently worse self-rated health across all 4 comparisons; an outcome, not a predictor
-- **`edu_cat`** (SMD = +0.47): DAPHNIE 2024 massively overrepresents degree holders (41.4% vs ~28–29% pre-2020 HSE) and nearly eliminates no-qualification respondents (2.3% vs ~21%); not in confirmed predictor set but the largest structural imbalance with no construct issue; **DAPHNIE 2023 is 100% missing** — inclusion only viable for the 2024 comparison
-- **`AD5L`** (SMD = +0.43, vs pre-2020 only): anxiety/depression most imbalanced EQ-5D dimension; outcome variable
-- **`obese`** (SMD = −0.30): measurement artefact dominates; pending PI decision
-- **`EQ-5D dimensions`** (SMD +0.10 to +0.43 vs pre-2020): DAPHNIE reports more health problems consistently; outcomes
+**Variables excluded from covariate comparison notebooks (01 and 02) and density ratio model:**
+- **`alcohol_yr`** (SMD = −0.87 D2024 vs pre-2020): skip-logic artefact, not includable as-is
+- **`srh`** (SMD = −0.82): outcome, not a predictor
+- **`obese`** (SMD = −0.30 vs pre-2020, ~0 vs HSE 2022): measurement artefact (nurse-measured pre-2020 vs self-reported); drop confirmed by PI
+- **`EQ-5D dimensions`** (SMD +0.10 to +0.43 vs pre-2020): outcomes; NaN vs HSE 2022 (no EQ-5D in HSE 2022)
+- **`eth4cat_*` dummies** (`eth4cat_Asian`, `eth4cat_Black`, `eth4cat_Others`, `eth4cat_White`): replaced by binary `eth2cat` in all notebooks; dropping them loses subgroup granularity (DAPHNIE 2024 specifically overrepresents Black respondents, SMD ≈ +0.24) but gives a cleaner, non-collinear predictor
+- **`edu_cat`** (original ordinal): replaced by binary `edu_cat_2` in all notebooks; NaN for all DAPHNIE 2023 comparisons confirming the original coding had massive missingness in the pilot wave
 
-**Variables in the current density ratio feature set:**
-- **`eth4cat_Black`** (SMD = +0.245): DAPHNIE 2024 overrepresents Black respondents
-- **`emp_cat_Unemployed`** (SMD = +0.237): DAPHNIE 2024 overrepresents unemployed
-- **`eth4cat_White`** (SMD = −0.166): DAPHNIE 2024 underrepresents White respondents
-- **`emp_cat_Employed`** (SMD = −0.086), **`smoke_ecig`** (SMD = +0.060), **`diabetes`** (SMD = −0.022), **`Sex`** (+0.043), **`age7cat`** (+0.013): all small
+**Confirmed density ratio predictor set (13 variables):** `Sex`, `age7cat`, `eth2cat`, `emp_cat_Employed`, `emp_cat_Other (Sick/Home/etc)`, `emp_cat_Retired`, `emp_cat_Student`, `emp_cat_Unemployed`, `edu_cat_2`, `smoke_ecig`, `diabetes`, `meds_num`, `ill_dis`
 
-**Key implication:** the current 6-predictor clean feature set captures only modest distributional
-shift. The largest imbalances live in variables not yet in the model (`srh`, EQ-5D, `obese`,
-`alcohol_yr`, `edu_cat`). The density ratio model will likely achieve a **lower AUC than before**
-and weights that do not fully align outcome distributions. `edu_cat` (+0.47) is the strongest
-case for PI review — it has no known construct issue and only 0.5% missing in DAPHNIE 2024, but is **100% missing in DAPHNIE 2023** so can only enter the 2024 comparison.
+**Key imbalances in DAPHNIE 2024 vs pre-2020 HSE (primary comparison):**
+- `edu_cat_2` (SMD ≈ +0.28): overrepresents degree holders (41.7% vs ~28–29% HSE)
+- `eth2cat` (SMD ≈ +0.23): overrepresents Non-White respondents (21.5% vs ~13% HSE)
+- `emp_cat_Unemployed` (SMD = +0.237): overrepresents unemployed (7.8% vs ~2% HSE)
+- `ill_dis` (SMD = −0.153): underrepresents ill/disabled
+- All other confirmed predictors: |SMD| < 0.1
+
+**Key implication:** the confirmed 13-variable feature set captures the main distributional differences in DAPHNIE 2024. The largest remaining imbalances (`srh`, EQ-5D outcomes, `alcohol_yr`) are excluded for methodological reasons. Covariate notebooks need re-run to confirm SMDs for `edu_cat_2`, `eth2cat`, `meds_num`, and `ill_dis` with the updated analytic column set.
 
 **DAPHNIE 2023 pilot anomalies confirmed:**
 - `emp_cat_Retired` SMD = −0.52, `emp_cat_Employed` = +0.42 (vs HSE): working-age skew
@@ -191,34 +198,41 @@ case for PI review — it has no known construct issue and only 0.5% missing in 
 ### Variables excluded from the density ratio model
 | Variable | Reason |
 |---|---|
-| `edu_cat` | **Not in confirmed predictor set but analytically urgent for DAPHNIE 2024.** Within-HSE is consistent (secular trend: ~28–29% degree pre-2020 → 34% in 2022). DAPHNIE 2024 imbalance is the largest in the data: degree holders 41.4% vs ~28–29% HSE; no-qualification 2.3% vs ~21% HSE (SMD = +0.47). Only 0.5% missing in DAPHNIE 2024. **DAPHNIE 2023: 100% missing** — cannot enter that comparison at all. **PI decision needed: add to confirmed predictor set for the DAPHNIE 2024 model.** |
+| `edu_cat_2` | **Added to confirmed predictor set (PI, Apr 2026).** Binary recoding of original `edu_cat`: Degree or equivalent vs below degree (absorbing No qualification). Within-HSE consistent (secular trend: ~28–29% degree pre-2020 → 34% HSE 2022). DAPHNIE 2024: 41.7% degree; DAPHNIE 2023: 44.5% degree; both vs ~28–29% pre-2020 HSE (SMD ≈ +0.28 binary). Missingness negligible across all waves (<0.5%). DAPHNIE 2023 missingness resolved by recoding — **includable for both wave comparisons**. |
+| `meds_num` | **Added to confirmed predictor set (PI, Apr 2026).** Number of medications. Already present and audited in dataset. Distribution details to be documented after covariate comparison re-run. |
+| `ill_dis` | **Added to confirmed predictor set (PI, Apr 2026).** Illness/disability indicator. Already present and audited in dataset. Distribution details to be documented after covariate comparison re-run. |
 | `smoke_ever` | Previously excluded (three incompatible coding schemes, massive missingness). **Fixed in updated Apr 2026 data**: within-HSE inconsistency resolved — HSE waves show a gradual, plausible secular decline (54.8% → 54.5% → 52.6% → 50.8% across 2017–2022); the old anomaly was a data artefact. **Remaining concern for DAPHNIE 2024**: 10.3% missing (vs ~0.7% in HSE) — listwise deletion would drop ~540 rows (~10% of DAPHNIE 2024). DAPHNIE 2023 still anomalous at 17.6% yes (likely pilot quota artefact). **Includable for DAPHNIE 2024 vs pre-2020 HSE** pending a decision on missingness handling; the PI decision is now simpler — the within-HSE barrier is gone. |
 | `smoke_ecig` | **Fixed in Apr 2026 data**: no missing values, consistent binary yes/no. **Included in current density ratio model.** DAPHNIE 2024 has higher use (22.4%) than HSE (~18%), likely a demographic composition effect. |
-| `eth4cat_*` dummies | Previously miscoded ("Others" absorbed all DAPHNIE rows). **Fixed in Apr 2026 data**: proper ethnicity distribution. **Included in current density ratio model** (4 dummies). DAPHNIE overrepresents Black respondents (~9% vs ~3% HSE). |
+| `eth2cat` | **Added to confirmed predictor set (PI, Apr 2026).** Binary recoding of `eth4cat`: White (0) vs Non-White (1). DAPHNIE 2024: 21.5% Non-White; DAPHNIE 2023: 20.1% Non-White; pre-2020 HSE: ~13% Non-White (SMD ≈ +0.23). Within-HSE consistent (11.7–14.1%). Missingness: 0.6% DAPHNIE 2024, 8.4% DAPHNIE 2023 (~139 rows, inherited from `eth4cat`). **Includable for both wave comparisons.** Replaces the 4 `eth4cat_*` dummies from the prior model. |
 | `age3cat` | Redundant with `age7cat` (finer granularity, strictly more informative) |
 | `bmi_calc` / `bmi_cat` | Missing in DAPHNIE 2024; `obese` was the intended common proxy, but see `obese` finding above |
-| `obese` | Construct shift between pre-2020 HSE (nurse-measured, ~16%) and HSE 2022 / DAPHNIE (self-reported, 7.7% / 5.7%). Most of the DAPHNIE vs pre-2020 HSE gap is measurement artefact. **PI decision needed: exclude or include with caveat.** |
+| `obese` | **Dropped from predictor set (PI decision, Apr 2026).** Differences driven by question type: nurse-measured in pre-2020 HSE (~24% obese) vs self-reported in DAPHNIE and HSE 2022 (~5.7% and ~18.1%). The DAPHNIE vs pre-2020 HSE gap is a measurement artefact, not a true population difference. Variable remains in the dataset for potential sensitivity analyses. |
 | `diabetes` | Previously miscoded (HSE coded nurse-screening completion ~99% = 1). **Fixed in Apr 2026 data**: no missing values, consistent self-reported prevalence 6.9–9.2% across all waves. **Included in current density ratio model.** The SMD ≈ −5 from prior analysis was entirely an artefact. |
 | `emp_cat_*` dummies | Previously all-zero for DAPHNIE 2023 and HSE 2019. **Fixed in Apr 2026 data**: <0.5% missing. **Included in current density ratio model** (5 dummies). Key imbalances in DAPHNIE 2024 vs pre-2020 HSE: unemployed overrepresented (7.8% vs ~2%), retired underrepresented (20.9% vs ~27%). DAPHNIE 2023 anomalous (76.9% employed, 4.8% retired) — narrow pilot quota. |
-| `skin` | **Not collected in DAPHNIE 2023 or HSE 2019**. Including it in the density ratio model would drop all HSE 2019 rows (~8,200, ~34% of the pre-2020 target) via listwise deletion. For the DAPHNIE 2023 comparison, both source and target wave are missing it. **PI decision needed: exclude, or restrict pre-2020 target to HSE 2017–2018 only.** |
-| `resp` | **Not collected in HSE 2019** (100% missing); consistent and well-harmonised everywhere else (7.8–9.1%). Same structural consequence as `skin`: including it drops ~8,200 HSE 2019 rows. Note: both `resp` and `skin` are missing in HSE 2019 — likely a deliberate instrument omission in that wave. If the PI wants to keep both, the cleanest solution is to drop HSE 2019 from the pre-2020 target entirely and use only HSE 2017–2018. **PI decision needed: exclude both, or restrict pre-2020 target to HSE 2017–2018.** |
+| `skin` | **Dropped from current pipeline (PI decision, Apr 2026).** Not collected in DAPHNIE 2023 or HSE 2019. **Reserved for a separate pipeline** restricting the pre-2020 HSE target to 2017–2018 only, which eliminates the HSE 2019 missingness constraint. |
+| `resp` | **Dropped from current pipeline (PI decision, Apr 2026).** Not collected in HSE 2019 (100% missing); consistent elsewhere (7.8–9.1%). Same structural constraint as `skin`. **Reserved for the same separate pipeline** using HSE 2017–2018 as target only. |
+| `alcohol_yr` | **Dropped from current pipeline (PI decision, Apr 2026).** Largest covariate imbalance (SMD = −0.87) but driven by skip-logic artefact across datasets — not includable as-is. Variable remains in the dataset for future consideration if harmonisation is possible. |
 
 ### Wrangling audit finding (Apr 2026 — largely resolved)
 The Apr 2026 data delivery fixed most harmonisation issues. Remaining open items requiring
-PI decisions before they can enter the density ratio model: `alcohol_yr`, `obese`,
-`resp`, `skin` (see excluded variables table above). `smoke_ever` within-HSE issue resolved —
-see table for remaining missingness consideration. `PA_vig`/`PA_mod` are
-DAPHNIE 2023-only and cannot enter. `edu_cat` audited (Apr 2026): large imbalance confirmed (SMD +0.47), within-HSE consistent, 0.5% missing in DAPHNIE 2024 but **100% missing in DAPHNIE 2023** — includable only for the 2024 comparison; PI decision needed to add to predictor set. `sat` not yet audited.
+All PI decisions resolved (Apr 2026). Dropped from current pipeline: `obese` (question-type
+artefact), `alcohol_yr` (skip-logic artefact), `resp` and `skin` (missing in HSE 2019 — reserved
+for a separate pipeline using HSE 2017–2018 as target only). `smoke_ever` within-HSE issue
+resolved — see table for remaining missingness consideration. `edu_cat_2`, `eth2cat`, `meds_num`,
+and `ill_dis` audited and added to predictor set. `PA_vig`/`PA_mod` DAPHNIE 2023-only, excluded.
+`sat` not yet audited.
 
-`wrangled_data.csv` regenerated Apr 2026: **38,995 rows × 44 columns**. Zero rows dropped
-for invalid `age7cat` (pre-filtered in source). All dummy columns for `eth4cat` and
-`emp_cat` confirmed present.
+`wrangled_data.csv` regenerated Apr 2026: **38,995 rows × 58 columns** (44 was a stale cached figure from notebook 02). Zero rows dropped for invalid `age7cat` (pre-filtered in source). `eth4cat_*` dummies and `emp_cat_*` dummies confirmed present in data but `eth4cat_*` are now excluded from all analytic notebooks in favour of binary `eth2cat`.
 
-### Density ratio estimation (notebook 03 — Apr 2026 re-run)
+### Density ratio estimation (notebook 03 — Apr 2026 re-run, results outdated)
 
-**Feature set (13 variables):** `Sex`, `age7cat`, `eth4cat_Asian`, `eth4cat_Black`,
-`eth4cat_Others`, `eth4cat_White`, `emp_cat_Employed`, `emp_cat_Other (Sick/Home/etc)`,
-`emp_cat_Retired`, `emp_cat_Student`, `emp_cat_Unemployed`, `diabetes`, `smoke_ecig`
+**Feature set (13 variables, updated):** `Sex`, `age7cat`, `eth2cat`, `emp_cat_Employed`,
+`emp_cat_Other (Sick/Home/etc)`, `emp_cat_Retired`, `emp_cat_Student`, `emp_cat_Unemployed`,
+`edu_cat_2`, `smoke_ecig`, `diabetes`, `meds_num`, `ill_dis`
+
+*Note: AUC results below are from the previous run using `eth4cat_*` dummies instead of
+`eth2cat`, and without `edu_cat_2`, `meds_num`, `ill_dis`. Notebook 03 needs re-running
+with the updated feature set before these figures can be interpreted.*
 
 **Architecture:** logistic regression (primary), gradient boosting (robustness check);
 `class_weight='balanced'`; 5-fold CV AUC; weights clipped at 99th percentile and
