@@ -60,19 +60,15 @@ Nine outcomes in total:
 | `AD5L` | Anxiety/depression dimension (1–5) | **Yes** | ~10.0% | ~0.6% |
 | `EQ_index` | EQ-5D-5L utility index (value set-scored) | **Yes** | ~10.9% | ~1.8% |
 | `LSS_rs` | Leidelmeijer Severity Score (0–100) | **Yes** | ~10.9% | ~1.8% |
-| `srh` | Self-rated health (ordinal 1–5) | Deferred to paper | ~0% | ~6.1% |
+| `srh` | Self-rated health (ordinal 1–5) | **Yes** | ~0% | ~6.1% |
 | `EQvas` | EQ Visual Analogue Scale (0–100) | Deferred to paper | ~11.5% | ~7.3% |
 
-`FULLHEALTH` (full health vs any EQ-5D-5L problem, binary) is **not in `wrangled_data.csv`**
-but is derivable in notebook 04 as `(MO5L==1) & (SC5L==1) & (UA5L==1) & (PD5L==1) & (AD5L==1)`.
-
-**Abstract scope decision (Apr 2026):** `srh` and `EQvas` are dropped from the abstract
-analysis due to time constraints and data quality concerns:
-- `EQvas` has the worst completion in both datasets (worst of all outcomes) and requires
-  placing oneself on a 0–100 scale — consistently the hardest item to answer
-- `srh` has a reversed missingness pattern (0% in HSE, 6.1% in DAPHNIE 2024) that would
-  need additional explanation; deferred to the full paper
-Both variables remain in the dataset for the full paper analysis.
+**Abstract scope decision (Apr 2026, updated):** `EQvas` is deferred to the full paper.
+`srh` is included in the abstract analysis (reversed missingness — ~0% HSE, ~6.1% DAPHNIE
+2024 — acknowledged as a limitation). `FULLHEALTH` (binary, derivable from dimensions) is
+dropped from notebook 04 in favour of `srh`.
+- `EQvas` has the worst completion in both datasets and requires placing oneself on a 0–100
+  scale — consistently the hardest item to answer; deferred to the full paper
 
 **EQ-5D missingness in HSE 2017–18 is not MCAR.** The ~10% block missing (1,492 respondents
 missing all five dimensions) is systematically related to observed covariates: worse SRH
@@ -97,17 +93,22 @@ Confirmed predictor set (PI):
 `emp_cat_Retired`, `emp_cat_Student`, `emp_cat_Unemployed`, `edu_cat_2`, `smoke_ecig`,
 `diabetes`, `meds_num`, `ill_dis`
 
-**Notebook 04 predictor set (15 variables, DAPHNIE 2024 vs HSE 2017–2018):**
-Same 13 variables above + `resp` + `skin`. Both are 0% missing in HSE 2017–18 and
-DAPHNIE 2024. They were excluded from notebook 03 because HSE 2019 (part of the pre-2020
-target) was missing them entirely; restricting the target to HSE 2017–2018 removes that
-constraint.
+**Notebook 04 predictor set (17 variables, DAPHNIE 2024 vs HSE 2017–2018):**
+Same 13 variables above + `resp` + `skin` + `PA_vig` + `PA_mod`. All four are 0% missing
+in HSE 2017–18 and DAPHNIE 2024. `resp` and `skin` were excluded from notebook 03 because
+HSE 2019 (part of the pre-2020 target) was missing them entirely; restricting the target to
+HSE 2017–2018 removes that constraint. `PA_vig`/`PA_mod` were excluded from notebook 03
+because they are missing in DAPHNIE 2023; restricting the source to DAPHNIE 2024 removes
+that constraint.
 
 Variables dropped from all pipelines: `obese` (measurement shift: nurse-measured in
 pre-2020 HSE vs self-reported in DAPHNIE; also 18.2% missing in HSE 2017–18),
-`PA_vig`/`PA_mod` (DAPHNIE 2023 only, 95.8% missing overall), `smoke_ever` (10.3%
-missing in DAPHNIE 2024 — deferred), `alcohol_yr` (skip-logic artefact — kept in
-dataset for future harmonisation work).
+`smoke_ever` (10.3% missing in DAPHNIE 2024 — deferred), `alcohol_yr` (skip-logic
+artefact — kept in dataset for future harmonisation work).
+
+`PA_vig`/`PA_mod` are excluded from notebook 03 (missing in DAPHNIE 2023 entirely) but
+**included in the restricted pipeline** (notebooks 011, 021, 031, 04) where the source is
+DAPHNIE 2024 only and both variables are 0% missing.
 
 ---
 
@@ -115,17 +116,26 @@ dataset for future harmonisation work).
 
 ### Aim 1 — Understand heterogeneity across datasets
 Characterise differences in health and sociodemographic/SES distributions between datasets using:
-- Traditional regression approaches
 - Unsupervised clustering (k-means, UMAP, LCA)
 - Community detection algorithms (Louvain and Leiden) to validate cluster structure
 
 The goal is not to find identical clusters across datasets, but to identify whether certain health
 and SES subgroups are systematically **under- or over-represented** in one dataset relative to
-another.
+another, and to characterise the health profile of those subgroups.
+
+**Second abstract scope (planned):** Aim 1 results form a standalone contribution —
+*What is the subgroup structure underlying the mismatch between online panel and random-sample
+health data?* This directly explains the mechanistic "why" behind the norm derivation failure
+documented in Abstract 1 (Aim 2). The two abstracts are complementary: Abstract 2 (Aim 1) is
+the upstream characterisation; Abstract 1 (Aim 2) is the applied downstream consequence.
+
+Notebooks: `clustering/01-kmeans_umap.ipynb`, `clustering/02-lca.ipynb`,
+`clustering/03-community_detection.ipynb`.
 
 ### Aim 2 — Derive adjusted EQ-5D-5L norms and assess residual differences
-Apply adjustment techniques informed by Aim 1 and assess whether adjusted norms still differ
-across datasets.
+Apply covariate shift correction (density ratio reweighting) and assess whether adjusted norms
+still differ across datasets. **Complete — Apr 2026.** Key finding: adjustment widens the
+DAPHNIE–HSE gap; residual difference implies $P(Y|X)$ is not constant across datasets.
 
 ---
 
@@ -165,12 +175,15 @@ informative for Aim 2.
 |---|---|---|
 | `data_wrangling/02-csv_wrangling.ipynb` | Cleans and concatenates all six raw datasets into `data/wrangled_data.csv`; harmonises variable names, coding, and survey weights | Done |
 | `covariate_shift/01-covariate_comparison.ipynb` | Within-HSE consistency check: weighted SMD comparing pre-2020 (2017–2019) vs post-2020 (HSE 2022); Love plot | Done — re-run Apr 2026 |
-| `covariate_shift/011-covariate_comparison_hse.ipynb` | HSE 2017 vs HSE 2018 pairwise consistency check on the 15-variable notebook 04 predictor set (incl. `resp` and `skin`); validates pooling the two waves as the norm derivation reference | Done — Apr 2026 |
+| `covariate_shift/011-covariate_comparison_hse.ipynb` | HSE 2017 vs HSE 2018 pairwise consistency check on the 17-variable notebook 04 predictor set (incl. `resp`, `skin`, `paVig`, `paMod`); validates pooling the two waves as the norm derivation reference | Needs re-run (`paVig` + `paMod` added) |
 | `covariate_shift/02-daphnie_vs_hse.ipynb` | 2×2 SMD comparison: each DAPHNIE wave (2023, 2024) vs each HSE target (2022, pre-2020); Love plot | Done — re-run Apr 2026 |
-| `covariate_shift/021-daphnie_vs_hse.ipynb` | Restricted SMD comparison for the norm derivation pipeline: DAPHNIE 2024 vs HSE 2017–2018 pooled, 16-variable predictor set (incl. `alcohol_yr` for characterisation); weighted means table and Love plot | Done — Apr 2026 |
+| `covariate_shift/021-daphnie_vs_hse.ipynb` | Restricted SMD comparison for the norm derivation pipeline: DAPHNIE 2024 vs HSE 2017–2018 pooled, 18-variable predictor set (incl. `alcohol_yr` for characterisation); weighted means table and Love plot | Needs re-run (`paVig` + `paMod` added) |
 | `covariate_shift/03-density_ratio.ipynb` | Classifier-based density ratio estimation — six model variants (LR, LR+Platt, LR+Venn-Abers, HGB, HGB+Isotonic, HGB+Venn-Abers) for each DAPHNIE wave vs pre-2020 HSE; calibration diagnostics (reliability diagrams, Brier, ECE); ESS and before/after balance check | Done — Apr 2026 |
-| `covariate_shift/031-density_ratio.ipynb` | Restricted pipeline: same six-model architecture for DAPHNIE 2024 vs HSE 2017–2018 only; 15-variable predictor set (adds `resp` + `skin`); `alcohol_yr` included as diagnostic in balance check only; produces the weights used in notebook 04 | Done — Apr 2026 |
-| `covariate_shift/04-norm_derivation.ipynb` | Restricted pipeline: density ratio re-estimated from scratch (plain LR, 15-variable predictor set, self-contained); importance-weighted population norms for 7 EQ-5D outcomes + FULLHEALTH; three-way comparison (HSE 2017–18 with `wt_int`, DAPHNIE unadjusted with `svy_wt`, DAPHNIE adjusted with `svy_wt × w_LR`) via Horvitz–Thompson weighted means with sandwich SEs; level frequency tables; dimension profile plots; weighted KDE for continuous outcomes; subgroup norms by Sex × age7cat | In progress — Apr 2026 |
+| `covariate_shift/031-density_ratio.ipynb` | Restricted pipeline: same six-model architecture for DAPHNIE 2024 vs HSE 2017–2018 only; 17-variable predictor set (adds `resp`, `skin`, `paVig`, `paMod`); `alcohol_yr` included as diagnostic in balance check only; produces the weights used in notebook 04 | Needs re-run (`paVig` + `paMod` added) |
+| `covariate_shift/04-norm_derivation.ipynb` | Restricted pipeline: density ratio re-estimated from scratch (plain LR, 17-variable predictor set, self-contained); importance-weighted population norms for 7 EQ-5D outcomes + `srh`; three-way comparison (HSE 2017–18 with `wt_int`, DAPHNIE unadjusted with `svy_wt`, DAPHNIE adjusted with `svy_wt × w_LR`) via Horvitz–Thompson weighted means with sandwich SEs; level frequency tables; dimension profile plots; weighted KDE for continuous outcomes; subgroup norms by Sex × age7cat | Done — Apr 2026 |
+| `clustering/01-kmeans_umap.ipynb` | K-means clustering (optimal $k$ by silhouette/elbow) + UMAP visualisation on the 17-variable feature set; cluster profiles by feature and EQ-5D outcome; cluster composition by dataset | Not started |
+| `clustering/02-lca.ipynb` | Latent Class Analysis ($K = 2$–$8$, model selection by BIC); class profiles and posterior memberships; class prevalence by dataset; cross-tabulation with k-means and community detection | Not started |
+| `clustering/03-community_detection.ipynb` | kNN similarity graph + Louvain and Leiden community detection; community profiles; adjusted Rand index vs k-means and LCA; communities overlaid on UMAP embedding | Not started |
 
 ---
 
@@ -197,7 +210,7 @@ Notable changes from previous documentation: `obese` is now stable within HSE (S
 
 ### HSE 2017 vs HSE 2018 pairwise consistency (Apr 2026, notebook 011)
 
-All 16 variables (15-variable notebook 04 predictor set + `alcohol_yr` for characterisation)
+All 18 variables (17-variable notebook 04 predictor set + `alcohol_yr` for characterisation)
 have |SMD| < 0.1 between the two waves. Maximum SMD is 0.037 (`eth2cat`); all others ≤ 0.030.
 `alcohol_yr` SMD = −0.015 — well-balanced within HSE, confirming any artefact is specific to
 the DAPHNIE vs HSE comparison. **Pooling HSE 2017 and HSE 2018 as the norm derivation
@@ -209,7 +222,7 @@ within HSE, skip-logic artefact with DAPHNIE confirmed separately in notebook 02
 
 ### DAPHNIE 2024 vs HSE 2017–2018: definitive covariate comparison (Apr 2026, notebook 021)
 
-**Feature set:** 16 variables — 15-variable notebook 04 predictor set + `alcohol_yr`
+**Feature set:** 18 variables — 17-variable notebook 04 predictor set + `alcohol_yr`
 (included for characterisation; excluded from the density ratio model due to skip-logic artefact).
 
 **5 variables with |SMD| > 0.1:**
@@ -366,7 +379,7 @@ limitation when deriving adjusted norms from DAPHNIE 2024.
 
 ### Density ratio estimation — restricted pipeline (notebook 031 — Apr 2026, final results)
 
-**Feature set (15 variables):** notebook 03 set + `resp` + `skin`. `alcohol_yr` excluded
+**Feature set (17 variables):** notebook 03 set + `resp` + `skin` + `PA_vig` + `PA_mod`. `alcohol_yr` excluded
 from model (skip-logic artefact confirmed); included in balance check as diagnostic only.
 
 **AUC results (5-fold CV, base models):**
@@ -429,7 +442,7 @@ it is the correct methodological decision.
 
 ---
 
-### Norm Derivation Pipeline (notebook 04 — in progress Apr 2026)
+### Norm Derivation Pipeline (notebook 04 — Done Apr 2026)
 
 **Design decisions (Apr 2026):**
 
@@ -439,12 +452,11 @@ it is the correct methodological decision.
   derivation.
 - **Target:** HSE 2017–2018 only (n ≈ 16,173). HSE 2019 excluded because it has no
   EQ-5D outcome data.
-- **Predictor set:** 15 variables (13 from notebook 03 + `resp` + `skin`; both 0% missing
-  in both datasets once HSE 2019 is excluded).
-- **Outcomes in scope for abstract (7):** `MO5L`, `SC5L`, `UA5L`, `PD5L`, `AD5L`,
-  `EQ_index`, `LSS_rs`. `FULLHEALTH` derivable from dimensions as
-  `(MO5L==1)&(SC5L==1)&(UA5L==1)&(PD5L==1)&(AD5L==1)`. `srh` and `EQvas` deferred
-  to full paper.
+- **Predictor set:** 17 variables (13 from notebook 03 + `resp` + `skin` + `paVig` +
+  `paMod`; all 0% missing in both datasets once HSE 2019 is excluded). `paVig` and `paMod`
+  are ordinal-encoded in the wrangling notebook: `paVig` 1–3, `paMod` 1–4.
+- **Outcomes in scope for abstract (8):** `MO5L`, `SC5L`, `UA5L`, `PD5L`, `AD5L`,
+  `EQ_index`, `LSS_rs`, `srh`. `EQvas` deferred to full paper. `FULLHEALTH` dropped.
 - **Density ratio:** re-estimated from scratch within notebook 04 (self-contained — no
   dependency on notebook 031 session state). Same plain LR architecture; results should
   reproduce notebook 031 exactly (same data, same random seed).
@@ -454,7 +466,7 @@ it is the correct methodological decision.
   - DAPHNIE 2024 adjusted, weighted with `svy_wt × w_LR`
 - **Estimator:** Horvitz–Thompson weighted mean with sandwich SE:
   $\widehat{SE} = \sqrt{\sum_i w_i^2 (y_i - \bar{y}_w)^2 / (\sum_i w_i)^2}$
-  — same formula for both means and proportions (FULLHEALTH, % any problem).
+  — same formula for all outcomes including % any problem per dimension.
 - **Outputs:**
   - Overall norms table: mean + SE for all 8 outcomes under all 3 conditions
   - % any problem (level ≥ 2) for each dimension
@@ -463,10 +475,71 @@ it is the correct methodological decision.
   - Weighted KDE comparison for `EQ_index` and `LSS_rs`
   - Subgroup norms by Sex × age7cat (EuroQoL standard breakdown)
 - **No wrangling changes needed:** all required variables already present in
-  `wrangled_data.csv`. `FULLHEALTH` computed in notebook 04 from dimensions.
+  `wrangled_data.csv`, including `srh`.
 - **Missingness limitation:** ~10% block missing on EQ-5D in HSE 2017–18 is not MCAR
   (systematically less healthy; see Outcome Variables section). Complete-case analysis
   per outcome accepted for abstract as stated limitation.
+
+**Key findings (Apr 2026 run):**
+
+**ESS:** 3,022 / 5,237 (57.7%) — lower than notebook 031's 74.5%, reflecting the
+expanded 17-variable predictor set.
+
+**Overall norms (weighted means):**
+
+| Outcome | HSE 2017–18 | DAPHNIE unadj. | DAPHNIE adj. |
+|---|---|---|---|
+| MO5L | 1.369 | 1.426 | 1.498 |
+| SC5L | 1.130 | 1.227 | 1.255 |
+| UA5L | 1.337 | 1.466 | 1.542 |
+| PD5L | 1.677 | 1.795 | 1.890 |
+| AD5L | 1.484 | 1.914 | 2.010 |
+| EQ_index | 0.889 | 0.831 | 0.809 |
+| LSS_rs | 90.10 | 85.87 | 84.02 |
+| srh | 3.988 | 3.155 | 3.012 |
+
+**% reporting any EQ-5D problem (level ≥ 2):**
+
+| Dimension | HSE 2017–18 | DAPHNIE unadj. | DAPHNIE adj. |
+|---|---|---|---|
+| MO5L | 21.5% | 26.7% | 31.6% |
+| SC5L | 7.5% | 14.4% | 16.8% |
+| UA5L | 19.9% | 29.1% | 34.5% |
+| PD5L | 44.3% | 51.8% | 56.7% |
+| AD5L | 31.7% | 50.6% | 53.7% |
+
+**Finding 1 — Adjustment widens the gap.** DAPHNIE unadjusted already falls below HSE on
+every outcome. After reweighting, the gap increases further. This is methodologically
+coherent: DAPHNIE overrepresents degree holders and employed people (healthier groups) and
+underrepresents ill/disabled people. Correcting for this composition reveals a worse
+underlying health profile than the raw sample suggested.
+
+**Finding 2 — AD5L is the most extreme dimension.** 54% of adjusted DAPHNIE report any
+anxiety/depression problem vs 32% in HSE — a 22-percentage-point gap, far larger than
+any physical dimension. Consistent with panel conditioning effects (health-engaged panellists
+may have heightened health awareness) or genuine selection of less mentally healthy
+individuals into the online panel.
+
+**Finding 3 — SRH gap is very large.** ~1 full scale-point difference (3.0 vs 4.0 on 1–5).
+Interpretation is cautious given the reversed missingness pattern (0% HSE, 6% DAPHNIE 2024).
+
+**Finding 4 — Residual gap implies P(Y|X) is not constant across datasets.** The density
+ratio approach assumes the conditional health distribution is equal given covariates. The
+persistent, large gap after adjustment violates this assumption. Likely drivers: panel
+conditioning, selection on unobservables (66% DAPHNIE 2024 attrition), or mode effects
+(online self-completion encourages candid mental health reporting).
+
+**Finding 5 — Subgroup patterns.** The DAPHNIE–HSE gap is present across all age groups
+and both sexes. It is largest in working-age groups (25–54) and narrows at older ages
+(65+), possibly reflecting positive selection of tech-engaged older panellists. The overall
+utility age gradient in HSE (monotonically declining) is not replicated in DAPHNIE, where
+estimates recover at older ages.
+
+**Overall conclusion.** DAPHNIE 2024 cannot serve as a source for England population norms —
+either unadjusted or after covariate reweighting. The EQ_index gap (~0.08 utility units) is
+at or above the minimal important difference for UK populations. HSE 2017–18 remains the
+only valid reference. The adjusted DAPHNIE estimates characterise the panel population and
+document the extent of residual bias; they are not interchangeable with population norms.
 
 ---
 
@@ -474,7 +547,7 @@ it is the correct methodological decision.
 
 - [x] Exploratory analysis completed
 - [x] Data wrangling and concatenation (`data_wrangling/02-csv_wrangling.ipynb`) — re-run Apr 2026 with cleaned source data
-- [x] Within-HSE consistency check (`covariate_shift/01-covariate_comparison.ipynb`) — re-run Apr 2026; 4/27 variables imbalanced, employment now stable
+- [x] Within-HSE consistency check (pre-2020 vs HSE 2022) (`covariate_shift/01-covariate_comparison.ipynb`) — re-run Apr 2026; 4/27 variables imbalanced, employment now stable
 - [x] DAPHNIE vs HSE 2×2 covariate comparison (`covariate_shift/02-daphnie_vs_hse.ipynb`) — re-run Apr 2026; 23 variables imbalanced in at least one comparison
 - [x] Wrangling audit (Apr 2026 data delivery resolved most issues):
   - [x] `eth4cat`: fixed — proper distribution across all waves
@@ -484,13 +557,15 @@ it is the correct methodological decision.
   - [x] `alcohol_yr`: kept in dataset, excluded from model (skip-logic artefact; future harmonisation possible)
   - [x] `obese`: dropped from all pipelines (measurement shift nurse vs self-reported; 18.2% missing in HSE 2017–18)
   - [x] `smoke_ever`: within-HSE inconsistency resolved; excluded from notebook 04 (10.3% missing in DAPHNIE 2024)
-  - [x] `resp` + `skin`: added to notebook 04 predictor set (0% missing once HSE 2019 excluded from target)
-  - [x] `PA_vig` / `PA_mod`: excluded (DAPHNIE 2023 only)
+  - [x] `resp` + `skin` + `paVig` + `paMod`: added to notebook 04 predictor set (0% missing once HSE 2019 and DAPHNIE 2023 excluded); ordinal-encoded in wrangling notebook (`paVig` 1–3, `paMod` 1–4)
 - [x] Density ratio / propensity score estimation — complete Apr 2026. Six model variants (LR, LR+Platt, LR+VA, HGB, HGB+Isotonic, HGB+VA) with calibration diagnostics. **Recommended schemes:** LR+Venn-Abers for DAPHNIE 2023 (3 residual imbalanced vars), plain LR for DAPHNIE 2024 (3 residual). Persistent imbalance in DAPHNIE 2024 reflects unmeasured selection — report as limitation.
-- [x] Restricted density ratio estimation (`covariate_shift/031-density_ratio.ipynb`) — DAPHNIE 2024 vs HSE 2017–2018; 15-variable predictor set. **Recommended scheme: plain LR** (3 residual imbalanced vars). Weights ready for notebook 04.
-- [ ] Norm derivation (`covariate_shift/04-norm_derivation.ipynb`) — notebook written Apr 2026; three-way comparison (HSE reference, DAPHNIE unadjusted, DAPHNIE adjusted) for 7 EQ-5D outcomes + FULLHEALTH; subgroup norms by Sex × age7cat; **needs first run and results review**
-- [ ] Cluster analysis and community detection
-- [ ] Adjusted norm comparison across datasets
+- [ ] Restricted density ratio estimation (`covariate_shift/031-density_ratio.ipynb`) — DAPHNIE 2024 vs HSE 2017–2018; 17-variable predictor set. **Needs re-run** (PA_vig + PA_mod added). Prior recommended scheme: plain LR (3 residual imbalanced vars).
+- [x] Norm derivation (`covariate_shift/04-norm_derivation.ipynb`) — Done Apr 2026. Three-way comparison for 7 EQ-5D outcomes + `srh`; subgroup norms by Sex × age7cat. Key finding: adjustment widens the DAPHNIE–HSE gap on all outcomes; residual gap implies P(Y|X) is not constant across datasets. See findings section above.
+- [ ] Cluster analysis — `clustering/` folder created Apr 2026; three stub notebooks ready:
+  - [ ] `clustering/01-kmeans_umap.ipynb` — k-means + UMAP
+  - [ ] `clustering/02-lca.ipynb` — Latent Class Analysis
+  - [ ] `clustering/03-community_detection.ipynb` — Louvain + Leiden
+- [ ] Second abstract (Aim 1): subgroup structure underlying the DAPHNIE–HSE mismatch
 
 ---
 
