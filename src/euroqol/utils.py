@@ -234,3 +234,66 @@ def run_calibration_diagnostics(daphnie_df, hse_df, features):
         })
 
     return probs, y_cal.values, pd.DataFrame(rows).set_index("Model")
+
+def fit_lr_density_ratio(source_df, target_df, features):
+    """
+    Pool source (label=0) and target (label=1); fit a balanced logistic regression.
+    Returns the fitted sklearn Pipeline.
+    """
+    src    = source_df[features].assign(_label=0)
+    tgt    = target_df[features].assign(_label=1)
+    pooled = pd.concat([src, tgt], ignore_index=True)
+    X, y   = pooled[features], pooled['_label']
+
+    lr = Pipeline([
+        ('imputer', SimpleImputer(strategy='median')),
+        ('scaler',  StandardScaler()),
+        ('clf',     LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42)),
+    ])
+    lr.fit(X, y)
+    return lr
+
+def wmean_se(y, w):
+    """
+    Weighted mean and sandwich SE.
+    y, w: array-like (NaN in y is excluded; only finite positive w are used).
+    Returns (mean, se).
+    """
+    y = np.asarray(y, dtype=float)
+    w = np.asarray(w, dtype=float)
+    mask = np.isfinite(y) & np.isfinite(w) & (w > 0)
+    if mask.sum() == 0:
+        return np.nan, np.nan
+    y_, w_ = y[mask], w[mask]
+    W   = w_.sum()
+    mu  = np.dot(w_, y_) / W
+    var = np.sum(w_**2 * (y_ - mu)**2) / W**2
+    return mu, np.sqrt(var)
+
+def subgroup_norms(outcome, conditions, age_labels, sex_labels):
+    """
+    Compute weighted mean (and SE) for `outcome` within each Sex x age7cat cell.
+    Returns a long-format DataFrame.
+    """
+    all_ages = sorted({int(v) for ds, _ in [(c[1], c[2]) for c in conditions]
+                       for v in ds['age7cat'].dropna().unique()})
+    all_sex  = sorted({int(v) for ds, _ in [(c[1], c[2]) for c in conditions]
+                       for v in ds['Sex'].dropna().unique()})
+
+    rows = []
+    for sex_val in all_sex:
+        for age_val in all_ages:
+            for cond_label, ds, wts_arr in conditions:
+                mask   = ((ds['Sex'] == sex_val) & (ds['age7cat'] == age_val)).values
+                y_sub  = ds[outcome].values[mask]
+                w_sub  = wts_arr[mask]
+                mu, se = wmean_se(y_sub, w_sub)
+                rows.append({
+                    'Sex':       sex_labels.get(sex_val,  str(sex_val)),
+                    'Age group': age_labels.get(age_val,  str(age_val)),
+                    'Condition': cond_label,
+                    'n':         int(mask.sum()),
+                    'mean':      mu,
+                    'SE':        se,
+                })
+    return pd.DataFrame(rows)
