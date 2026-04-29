@@ -15,7 +15,9 @@ dependencies = [
     "catboost (>=1.2.10,<2.0.0)",
     "jupyter (>=1.1.1,<2.0.0)",
     "venn-abers (>=1.5.1,<2.0.0)",
-    "umap-learn (>=0.5.12,<0.6.0)"
+    "umap-learn (>=0.5.12,<0.6.0)",
+    "igraph (>=1.0.0,<2.0.0)",
+    "leidenalg (>=0.11.0,<0.12.0)"
 ]
 
 [tool.poetry]
