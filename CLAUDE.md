@@ -129,7 +129,7 @@ health data?* This directly explains the mechanistic "why" behind the norm deriv
 documented in Abstract 1 (Aim 2). The two abstracts are complementary: Abstract 2 (Aim 1) is
 the upstream characterisation; Abstract 1 (Aim 2) is the applied downstream consequence.
 
-Notebooks: `clustering/01-kmeans_umap.ipynb`, `clustering/02-lca.ipynb`,
+Notebooks: `clustering/011-kmeans_umap.ipynb`, `clustering/02-lca.ipynb`,
 `clustering/03-community_detection.ipynb`.
 
 ### Aim 2 — Derive adjusted EQ-5D-5L norms and assess residual differences
@@ -181,10 +181,10 @@ informative for Aim 2.
 | `covariate_shift/03-density_ratio.ipynb` | Classifier-based density ratio estimation — six model variants (LR, LR+Platt, LR+Venn-Abers, HGB, HGB+Isotonic, HGB+Venn-Abers) for each DAPHNIE wave vs pre-2020 HSE; calibration diagnostics (reliability diagrams, Brier, ECE); ESS and before/after balance check | Done — Apr 2026 |
 | `covariate_shift/031-density_ratio.ipynb` | Restricted pipeline: same six-model architecture for DAPHNIE 2024 vs HSE 2017–2018 only; 17-variable predictor set (adds `resp`, `skin`, `paVig`, `paMod`); `alcohol_yr` included as diagnostic in balance check only; produces the weights used in notebook 04 | Needs re-run (`paVig` + `paMod` added) |
 | `covariate_shift/04-norm_derivation.ipynb` | Restricted pipeline: density ratio re-estimated from scratch (plain LR, 17-variable predictor set, self-contained); importance-weighted population norms for 7 EQ-5D outcomes + `srh`; three-way comparison (HSE 2017–18 with `wt_int`, DAPHNIE unadjusted with `svy_wt`, DAPHNIE adjusted with `svy_wt × w_LR`) via Horvitz–Thompson weighted means with sandwich SEs; level frequency tables; dimension profile plots; weighted KDE for continuous outcomes; subgroup norms by Sex × age7cat | Done — Apr 2026 |
-| `clustering/01-kmeans_umap.ipynb` | K-means clustering (optimal $k$ by silhouette/elbow) + UMAP visualisation on the 17-variable feature set; cluster profiles by feature and EQ-5D outcome; cluster composition by dataset | **Done — Apr 2026** |
+| `clustering/011-kmeans_umap.ipynb` | Restricted pipeline: k-means (optimal $k$ by silhouette/elbow) + UMAP on the 17-variable feature set; DAPHNIE 2024 vs HSE 2017–18 only; cluster profiles by feature and EQ-5D outcome; cluster composition by dataset; density ratio weights per cluster; Gower distance sensitivity (Section 9) | **Needs re-run** — loaded 38,340 rows (stale snapshot; canonical Apr 2026 data = 38,995 rows); `paVig`/`paMod` show ~12% missingness in restricted sample despite 0% expected; `srh_2` used in health UMAP panel (undocumented recoding — verify or replace with `srh`). Cluster sizes and findings otherwise match documented results. |
 | `clustering/02-lca.ipynb` | Latent Class Analysis ($K = 2$–$8$, model selection by BIC); class profiles and posterior memberships; class prevalence by dataset; cross-tabulation with k-means and community detection | **Skipped** — `stepmix` incompatible with scikit-learn ≥1.8.0; GaussianMixture approximation rejected as unnecessary for abstract |
 | `clustering/03-community_detection.ipynb` | kNN similarity graph + Louvain and Leiden community detection; community profiles; adjusted Rand index vs k-means and LCA; communities overlaid on UMAP embedding | **Abandoned** — CPMVertexPartition on kNN graphs (Euclidean, Gower, PCA+Euclidean, k=15–30) produces micro-communities (>1,000) regardless of resolution; data has continuous not discrete covariate structure |
-| `clustering/031-community_detection.ipynb` | kNN similarity graph with Gower similarity weights ($1 - d_\text{Gower}$) + Leiden (RBConfigurationVertexPartition); resolution sensitivity sweep; community profiles; composition by dataset; ARI vs k-means; UMAP overlay | **Done — Apr 2026** |
+| `clustering/031-community_detection.ipynb` | kNN similarity graph with Gower similarity weights ($1 - d_\text{Gower}$), k=20 + Leiden (RBConfigurationVertexPartition); resolution sensitivity sweep (0.001–1.0); final partition at res=0.01 (16 communities, Q=0.761); community profiles; composition by dataset; ARI vs k-means; UMAP overlay | **Needs re-run** — stale data (38,340 rows; canonical = 38,995); resolution updated from 0.001 to 0.01; k corrected from 15 to 20 |
 
 ---
 
@@ -544,9 +544,9 @@ document the extent of residual bias; they are not interchangeable with populati
 
 ---
 
-### Aim 1 — Subgroup structure (notebooks 01 and 031 — Done Apr 2026)
+### Aim 1 — Subgroup structure (notebooks 011 and 031 — Done Apr 2026)
 
-**K-means (notebook 01, k=6, 17-variable Gower-normalised features):**
+**K-means (notebook 011, k=6, 17-variable Gower-normalised features):**
 
 Six clusters identified by peak silhouette score. Key clusters for the abstract:
 
@@ -563,32 +563,48 @@ Cluster 5 is the key finding: DAPHNIE strongly overrepresents a small, health-aw
 mentally health-engaged subgroup (51% DAPHNIE, density ratio weight 0.35 — needs
 downweighting by factor ~3). This cluster drives the AD5L gap in notebook 04.
 
-**Community detection (notebook 031, Leiden RBC, k=15, res=0.001):**
+**Community detection (notebook 031, Leiden RBC, k=20, res=0.01):**
 
-10 communities. Resolution sensitivity sweep (0.001–1.0) confirms RBConfigurationVertexPartition
-on the Gower kNN graph gives tractable partitions at low resolution; CPMVertexPartition
+16 communities, Q=0.761. Resolution sensitivity sweep (0.001–1.0, k=20) confirmed
+RBConfigurationVertexPartition gives tractable partitions; res=0.01 chosen over res=0.001
+because it splits the former mainstream community into six interpretable large communities,
+revealing a sizeable DAPHNIE-enriched subgroup hidden at coarser resolution. CPMVertexPartition
 was abandoned after consistently producing >1,000 micro-communities regardless of k or metric.
+The two-large-community backbone (communities 0 and 1) is stable across k=15–20 and res=0.001–0.01.
 
-Community composition by dataset (% DAPHNIE 2024; overall share = 24.9%):
+Community composition by dataset (% DAPHNIE 2024; overall sample share = 24.9%):
 
-| Community | % DAPHNIE | Classification |
-|---|---|---|
-| 0 | 26.8% | Mainstream (~72% of data); nearly representative |
-| 1 | 19.6% | HSE-enriched |
-| 2 | 33.3% | DAPHNIE-enriched |
-| 3 | **44.7%** | Strongly DAPHNIE-enriched |
-| 4 | 2.6% | Near-exclusively HSE |
-| 5 | 34.2% | DAPHNIE-enriched |
-| 6 | 8.8% | HSE-enriched |
-| 7 | 6.1% | Near-exclusively HSE |
-| 8 | **0.0%** | Exclusively HSE — structurally absent from DAPHNIE |
-| 9 | 32.1% | DAPHNIE-enriched |
+| Community | n | % DAPHNIE | Classification |
+|---|---|---|---|
+| 0 | 7,715 | 24.9% | Mainstream (~37% of data); representative |
+| 1 | 5,583 | 19.6% | HSE-enriched |
+| 2 | 2,469 | 26.4% | Representative |
+| 3 | 1,921 | 23.2% | Representative |
+| **4** | **1,546** | **45.7%** | **Strongly DAPHNIE-enriched** |
+| 5 | 1,441 | 23.7% | Representative |
+| 6 | 93 | 33.3% | DAPHNIE-enriched |
+| 7 | 38 | 44.7% | Strongly DAPHNIE-enriched |
+| 8 | 38 | 2.6% | Near-exclusively HSE |
+| 9 | 38 | 34.2% | DAPHNIE-enriched |
+| 10 | 34 | 8.8% | HSE-enriched |
+| 11 | 33 | 6.1% | Near-exclusively HSE |
+| **12** | **31** | **0.0%** | **Exclusively HSE — structurally absent from DAPHNIE** |
+| 13 | 31 | 6.5% | Near-exclusively HSE |
+| 14 | 28 | 32.1% | DAPHNIE-enriched |
+| 15 | 28 | 3.6% | Near-exclusively HSE |
+
+Six large communities (n≥1,441) contain 98% of observations. Five are near-representative
+or modestly HSE-enriched (19.6–26.4%); community 4 (n=1,546, 7.3% of sample) is the key
+large-community finding: strongly DAPHNIE-enriched at 45.7%, hidden within the coarser
+res=0.001 partition. Ten small communities (n=28–93) split into four DAPHNIE-enriched
+(32–45%) and six strongly HSE-enriched (0–9%), including one with no DAPHNIE members.
 
 **Key Aim 1 finding:** The DAPHNIE–HSE norm gap has two mechanistically distinct
-components: (1) selective over-recruitment of health-engaged subgroups (communities 3, 5;
-clusters 4, 5 in k-means) — partially correctable by density ratio reweighting; and (2)
-structural absence of specific health subgroups from the online panel (community 8: 0%
-DAPHNIE; communities 4, 7: <7% DAPHNIE) — not correctable by any post-hoc weighting.
+components: (1) selective over-recruitment of health-engaged subgroups — community 4
+(n=1,546, 45.7% DAPHNIE) plus small communities 6, 7, 9, 14 (32–45% DAPHNIE); clusters
+3, 4, 5 in k-means — partially correctable by density ratio reweighting; and (2) structural
+absence of specific health subgroups from the online panel (community 12: 0% DAPHNIE;
+communities 8, 11, 13, 15: 0–7% DAPHNIE) — not correctable by any post-hoc weighting.
 This explains why reweighting widened rather than closed the norm gap in notebook 04.
 
 ---
@@ -612,10 +628,10 @@ This explains why reweighting widened rather than closed the norm gap in noteboo
 - [ ] Restricted density ratio estimation (`covariate_shift/031-density_ratio.ipynb`) — DAPHNIE 2024 vs HSE 2017–2018; 17-variable predictor set. **Needs re-run** (PA_vig + PA_mod added). Prior recommended scheme: plain LR (3 residual imbalanced vars).
 - [x] Norm derivation (`covariate_shift/04-norm_derivation.ipynb`) — Done Apr 2026. Three-way comparison for 7 EQ-5D outcomes + `srh`; subgroup norms by Sex × age7cat. Key finding: adjustment widens the DAPHNIE–HSE gap on all outcomes; residual gap implies P(Y|X) is not constant across datasets. See findings section above.
 - [x] Cluster analysis — **Done Apr 2026**:
-  - [x] `clustering/01-kmeans_umap.ipynb` — k=6 by peak silhouette; 6 cluster profiles; DAPHNIE composition per cluster; density ratio weights per cluster
+  - [ ] `clustering/011-kmeans_umap.ipynb` — **Needs re-run**: stale data (38,340 vs 38,995 rows; 64 vs 58 cols); `paVig`/`paMod` show ~12% missingness in restricted sample; `srh_2` used in health UMAP panel (verify/replace with `srh`). Results otherwise match documented findings (k=6, all cluster sizes, composition, weights).
   - [ ] `clustering/02-lca.ipynb` — **Skipped** (dependency conflict)
   - [ ] `clustering/03-community_detection.ipynb` — **Abandoned** (micro-communities, data is continuous)
-  - [x] `clustering/031-community_detection.ipynb` — Leiden RBC, 10 communities at res=0.001; composition by dataset; ARI vs k-means; UMAP overlay
+  - [ ] `clustering/031-community_detection.ipynb` — **Needs re-run**: stale data (38,340 vs 38,995 rows); update `RESOLUTION_FINAL` from 0.001 to 0.01 in notebook. Final partition: k=20, res=0.01, 16 communities, Q=0.761; composition by dataset; ARI vs k-means; UMAP overlay.
 - [x] Second abstract (Aim 1): subgroup structure underlying the DAPHNIE–HSE mismatch — **findings complete, abstract drafted Apr 2026**
 
 ---
